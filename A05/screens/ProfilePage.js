@@ -3,11 +3,12 @@ import { useNavigation } from '@react-navigation/native';
 import { StyleSheet, Text, View, TextInput, Button, Image, TouchableOpacity } from 'react-native';
 import { getUserProfile } from './FirebaseConfig';
 import { getAuth } from 'firebase/auth';
-// import { styled } from 'nativewind';
+import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage'; // Import Firebase Storage
 
 function ProfilePage() {
   const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null); // Avatar URL state
   const [loading, setLoading] = useState(true);
   const auth = getAuth();
 
@@ -18,6 +19,14 @@ function ProfilePage() {
         if (user) {
           const profile = await getUserProfile(user.uid);
           setUserProfile(profile);
+
+          // If avatar path exists, fetch it from Firebase Storage
+          if (profile.avatarUrl) {
+            const storage = getStorage();
+            const avatarRef = storageRef(storage, profile.avatarUrl);
+            const url = await getDownloadURL(avatarRef);
+            setAvatarUrl(url); // Set avatar URL
+          }
         } else {
           throw new Error('User not logged in');
         }
@@ -45,7 +54,7 @@ function ProfilePage() {
         <>
           {/* Profile Image */}
           <Image
-            source={userProfile.avatar ? { uri: userProfile.avatar } : require('../assets/avatar.png')}
+            source={avatarUrl ? { uri: avatarUrl } : require('../assets/avatar.png')} // Use Firebase avatar or default
             style={styles.avatar}
           />
           <Text style={styles.nameText}>{userProfile.name}</Text>
@@ -66,7 +75,7 @@ function ProfilePage() {
               <TextInput
                 style={styles.input}
                 value={userProfile.email}
-                editable={false}
+                editable={false} // Email not editable
               />
             </View>
 
@@ -81,22 +90,17 @@ function ProfilePage() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Date of Birth</Text>
-              
               <TextInput
                 style={styles.input}
                 value={userProfile.birthdate}
                 editable={true}
               />
-             
             </View>
           </View>
 
           {/* Edit Button */}
-          <TouchableOpacity style={styles.button}
-          onPress={() => navigation.navigate('Edit')}
-          >
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Edit')}>
             <Text style={styles.buttonText}>Edit</Text>
-            
           </TouchableOpacity>
         </>
       ) : (
@@ -149,15 +153,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
-  dateOfBirth: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateInput: {
-    width: '30%',
-  },
   button: {
-    backgroundColor: '#2596be', // Purple button background
+    backgroundColor: '#2596be',
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 8,
@@ -169,6 +166,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  textStyle: {
+    fontSize: 18,
+    marginBottom: 10,
   },
 });
 
